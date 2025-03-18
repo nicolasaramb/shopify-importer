@@ -1,124 +1,146 @@
-Laravel Project Setup Guide
+# Guía de Configuración del Proyecto Laravel
 
 Este documento proporciona instrucciones detalladas para configurar y ejecutar un proyecto Laravel con los requisitos especificados.
 
-Requisitos
+## Requisitos
 
 Asegúrate de tener instalados los siguientes requisitos antes de comenzar:
 
-PHP >= 8.2
+- PHP >= 8.2
+- Composer
+- MySQL
+- Node.js y npm
+- Supervisor (para ejecutar procesos en segundo plano)
+- Redis (opcional, pero recomendado para optimización de colas y caché)
 
-Composer
+## Instalación del Proyecto
 
-MySQL
+1.  **Clonar el Repositorio**
 
-Node.js y npm
+    ```bash
+    git clone <URL_DEL_REPOSITORIO>
+    cd <NOMBRE_DEL_PROYECTO>
+    ```
 
-Supervisor (para ejecutar procesos en segundo plano)
+2.  **Instalar Dependencias**
 
-Redis (opcional, pero recomendado para optimización de colas y caché)
+    ```bash
+    composer install
+    npm install
+    ```
 
-Instalación del Proyecto
+3.  **Configurar Variables de Entorno**
 
-1. Clonar el Repositorio
+    Renombrar el archivo `.env.example` a `.env` y configurar las siguientes variables:
 
-git clone <URL_DEL_REPOSITORIO>
-cd <NOMBRE_DEL_PROYECTO>
+    ```
+    IMS_API_URL=
+    IMS_USERNAME=
+    IMS_PASSWORD=
+    SHOPIFY_STORE=
+    SHOPIFY_ACCESS_TOKEN=
+    ```
 
-2. Instalar Dependencias
+    Configura también la conexión a la base de datos en `.env`:
 
-composer install
-npm install
+    ```
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=laravel_db
+    DB_USERNAME=root
+    DB_PASSWORD=
+    ```
 
-3. Configurar Variables de Entorno
+4.  **Generar la Clave de Aplicación**
 
-Renombrar el archivo .env.example a .env y configurar las siguientes variables:
+    ```bash
+    php artisan key:generate
+    ```
 
-IMS_API_URL=
-IMS_USERNAME=
-IMS_PASSWORD=
-SHOPIFY_STORE=
-SHOPIFY_ACCESS_TOKEN=
+5.  **Migrar la Base de Datos y Ejecutar Seeders**
 
-Configura también la conexión a la base de datos en .env:
+    ```bash
+    php artisan migrate --seed
+    ```
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=laravel_db
-DB_USERNAME=root
-DB_PASSWORD=
+6.  **Crear un Usuario de Prueba con Tinker**
 
-4. Generar la Clave de Aplicación
+    ```bash
+    php artisan tinker
+    ```
 
-php artisan key:generate
+    Dentro de Tinker, ejecutar:
 
-5. Migrar la Base de Datos y Ejecutar Seeders
+    ```php
+    use App\Models\User;
+    User::create([
+        'name' => 'Admin',
+        'email' => 'admin@example.com',
+        'password' => bcrypt('password')
+    ]);
+    ```
 
-php artisan migrate --seed
+## Configuración de Supervisor
 
-6. Crear un Usuario de Prueba con Tinker
+Supervisor es necesario para ejecutar el job `SyncProductsJob` cada tres minutos.
 
-php artisan tinker
+1.  **Instalar Supervisor (si no está instalado)**
 
-Dentro de Tinker, ejecutar:
+    ```bash
+    sudo apt update && sudo apt install supervisor
+    ```
 
-use App\Models\User;
-User::create([
-    'name' => 'Admin',
-    'email' => 'admin@example.com',
-    'password' => bcrypt('password')
-]);
+2.  **Crear un Archivo de Configuración para Laravel**
 
-Configuración de Supervisor
+    ```bash
+    sudo nano /etc/supervisor/conf.d/laravel-worker.conf
+    ```
 
-Supervisor es necesario para ejecutar el job SyncProductsJob cada tres minutos.
+    Agregar el siguiente contenido:
 
-1. Instalar Supervisor (si no está instalado)
+    ```ini
+    [program:laravel-worker]
+    process_name=%(program_name)s_%(process_num)02d
+    command=php /ruta/al/proyecto/artisan queue:work --tries=3
+    autostart=true
+    autorestart=true
+    numprocs=1
+    user=www-data
+    redirect_stderr=true
+    stdout_logfile=/ruta/al/proyecto/storage/logs/worker.log
+    ```
 
-sudo apt update && sudo apt install supervisor
+3.  **Recargar la Configuración de Supervisor**
 
-2. Crear un Archivo de Configuración para Laravel
+    ```bash
+    sudo supervisorctl reread
+    sudo supervisorctl update
+    sudo supervisorctl start laravel-worker:*
+    ```
 
-sudo nano /etc/supervisor/conf.d/laravel-worker.conf
+4.  **Verificar el Estado de Supervisor**
 
-Agregar el siguiente contenido:
+    ```bash
+    sudo supervisorctl status
+    ```
 
-[program:laravel-worker]
-process_name=%(program_name)s_%(process_num)02d
-command=php /ruta/al/proyecto/artisan queue:work --tries=3
-autostart=true
-autorestart=true
-numprocs=1
-user=www-data
-redirect_stderr=true
-stdout_logfile=/ruta/al/proyecto/storage/logs/worker.log
+## Configurar el Job en Laravel
 
-3. Recargar la Configuración de Supervisor
-
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl start laravel-worker:*
-
-4. Verificar el Estado de Supervisor
-
-sudo supervisorctl status
-
-Configurar el Job en Laravel
-
+```bash
 crontab -e
-
-Agregar la siguiente línea al final del archivo:
 
 * * * * * php /ruta/al/proyecto/artisan schedule:run >> /dev/null 2>&1
 
-Ejecutar en Producción
+```
 
+## Ejecutar en Producción
 Para correr la aplicación en producción, se recomienda usar un servidor web como Nginx o Apache, configurando un Virtual Host para servir Laravel desde /public.
 
 También se recomienda habilitar caché y optimizaciones en producción:
 
+```bash
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-
+```
