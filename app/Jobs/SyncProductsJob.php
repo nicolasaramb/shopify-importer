@@ -47,7 +47,12 @@ class SyncProductsJob implements ShouldQueue
         do {
             // Obtener productos de IMS
             $response = Http::withBasicAuth($this->imsUsername, $this->imsPassword)
-                ->get($this->imsApiUrl, ['page' => $page, 'size' => $size]);
+            ->post($this->imsApiUrl, [
+                'codEmpresa' => '7',
+                'page' => $page,
+                'size' => $size,
+            ]);
+        
 
             if ($response->failed()) {
                 \Log::error("Error obteniendo productos de IMS", ['response' => $response->body()]);
